@@ -1,30 +1,57 @@
-/*
- * Blink
- * Turns on an LED on for one second,
- * then off for one second, repeatedly.
- */
-
+#include <Servo.h>
 #include <Arduino.h>
 
-// Set LED_BUILTIN if it is not defined by Arduino framework
-#ifndef LED_BUILTIN
-    #define LED_BUILTIN 2
-#endif
+#define TRIG1 9
+#define ECHO1 10
 
-void setup()
-{
-  // initialize LED digital pin as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
+#define TRIG2 6
+#define ECHO2 7
+
+// === Servo ===
+Servo myServo;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(TRIG1, OUTPUT);
+  pinMode(ECHO1, INPUT);
+
+  pinMode(TRIG2, OUTPUT);
+  pinMode(ECHO2, INPUT);
+
+  myServo.attach(3);
+  myServo.write(90);
 }
 
-void loop()
-{
-  // turn the LED on (HIGH is the voltage level)
-  digitalWrite(LED_BUILTIN, HIGH);
-  // wait for a second
-  delay(1000);
-  // turn the LED off by making the voltage LOW
-  digitalWrite(LED_BUILTIN, LOW);
-   // wait for a second
-  delay(1000);
+void loop() {
+  long distance1 = getDistance(TRIG1, ECHO1);
+  long distance2 = getDistance(TRIG2, ECHO2);
+
+  Serial.print("Sensor1: ");
+  Serial.print(distance1);
+  Serial.print(" cm | Sensor2: ");
+  Serial.print(distance2);
+  Serial.println(" cm");
+
+  if (distance1 < 20) {
+    myServo.write(90);
+  }
+  else if (distance2 < 20) {
+    myServo.write(0);
+  }
+
+  delay(300);
+}
+
+long getDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 30000); // timeout 30ms
+  long distance = duration * 0.034 / 2; // konversi ke cm
+  return distance;
 }
