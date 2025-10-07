@@ -8,6 +8,8 @@
 #define ECHO_B 13
 #define PIN_SERVO 9
 #define PIN_BUZZER 8
+#define LED_HIJAU 6
+#define LED_MERAH 7
 
 // ----- OBJEK SENSOR DAN SERVO -----
 UltraSonicDistanceSensor sensorA(TRIG_A, ECHO_A);
@@ -18,15 +20,15 @@ Servo palang;
 const int SUDUT_BUKA   = 0;      // Palang buka
 const int SUDUT_TUTUP  = 140;    // Palang tutup
 const float JARAK_DETEKSI_CM = 50.0; // Batas deteksi (cm)
-const unsigned long WAKTU_TIMEOUT = 5000; // 5 detik
-const unsigned long BATAS_WAKTU_DETEKSI = 5000; // 5 detik untuk warning
+const unsigned long WAKTU_TIMEOUT = 5000; // 5 detik tanpa deteksi
+const unsigned long BATAS_WAKTU_DETEKSI = 5000; // 5 detik untuk peringatan buzzer
 
 // ----- VARIABEL -----
+unsigned long waktuMulaiDeteksiA = 0;
+unsigned long waktuMulaiDeteksiB = 0;
 unsigned long waktuTerakhirA = 0;
 unsigned long waktuTerakhirB = 0;
-unsigned long waktuMulaiDeteksiA = 0;
 bool buzzerAktif = false;
-bool masihTerdeteksiA = false;
 bool palangTerbuka = false;
 
 // ----- FUNGSI BUZZER -----
@@ -44,11 +46,26 @@ void buzzerMati() {
   }
 }
 
+// ----- FUNGSI LED -----
+void updateLED() {
+  if (palangTerbuka) {
+    digitalWrite(LED_HIJAU, HIGH);
+    digitalWrite(LED_MERAH, LOW);
+  } else {
+    digitalWrite(LED_HIJAU, LOW);
+    digitalWrite(LED_MERAH, HIGH);
+  }
+}
+
 // ----- SETUP -----
 void setup() {
   Serial.begin(9600);
   pinMode(PIN_BUZZER, OUTPUT);
+  pinMode(LED_HIJAU, OUTPUT);
+  pinMode(LED_MERAH, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
+  digitalWrite(LED_HIJAU, LOW);
+  digitalWrite(LED_MERAH, HIGH); // awalnya palang tertutup → merah ON
 
   palang.attach(PIN_SERVO);
   palang.write(SUDUT_TUTUP);
@@ -67,61 +84,93 @@ void loop() {
 
   unsigned long sekarang = millis();
 
-  // ---------------------------
-  // Logika Sensor A (buka palang)
-  // ---------------------------
-  if (deteksiA) {
+  // ===================================================
+  // CASE 1: Kedua sensor aktif → palang tetap terbuka
+  // ===================================================
+  if (deteksiA && deteksiB) {
     if (waktuMulaiDeteksiA == 0) waktuMulaiDeteksiA = sekarang;
 
     palang.write(SUDUT_BUKA);
     palangTerbuka = true;
-    buzzerMati();
+    waktuTerakhirA = sekarang;
+    Serial.println("Kedua sensor aktif → Palang tetap terbuka");
+
+    // Jika kedua sensor aktif lebih dari 5 detik → buzzer ON
+    if (sekarang - waktuMulaiDeteksiA >= BATAS_WAKTU_DETEKSI) {
+      buzzerNyala();
+      Serial.println("Kedua sensor aktif > 5 detik → Buzzer ON (palang tetap terbuka)");
+    } else {
+      buzzerMati();
+    }
+  }
+
+  // ===================================================
+  // CASE 2: Hanya sensor A aktif → buka palang
+  // ===================================================
+  else if (deteksiA) {
+    if (waktuMulaiDeteksiA == 0) waktuMulaiDeteksiA = sekarang;
+
+    palang.write(SUDUT_BUKA);
+    palangTerbuka = true;
     waktuTerakhirA = sekarang;
     Serial.println("Sensor A aktif → Palang dibuka");
 
-    // Jika masih terdeteksi setelah 5 detik → buzzer ON
+    // Jika sensor A masih aktif setelah 5 detik → buzzer ON
     if (sekarang - waktuMulaiDeteksiA >= BATAS_WAKTU_DETEKSI) {
       buzzerNyala();
-      Serial.println("Sensor A masih aktif setelah 5 detik → Buzzer ON");
+      Serial.println("Sensor A masih aktif > 5 detik → Buzzer ON");
+    } else {
+      buzzerMati();
     }
-  } 
-  else {
-    waktuMulaiDeteksiA = 0;
   }
 
-  // ---------------------------
-  // Logika Sensor B (tutup palang)
-  // ---------------------------
-  if (deteksiB) {
+  // ===================================================
+  // CASE 3: Hanya sensor B aktif → tutup palang
+  // ===================================================
+  else if (deteksiB) {
+    if (waktuMulaiDeteksiB == 0) waktuMulaiDeteksiB = sekarang;
+
     palang.write(SUDUT_TUTUP);
     palangTerbuka = false;
-    buzzerMati();
     waktuTerakhirB = sekarang;
     Serial.println("Sensor B aktif → Palang ditutup");
+
+    // Jika sensor B aktif lebih dari 5 detik → buzzer ON
+    if (sekarang - waktuMulaiDeteksiB >= BATAS_WAKTU_DETEKSI) {
+      buzzerNyala();
+      Serial.println("Sensor B aktif > 5 detik → Buzzer ON");
+    } else {
+      buzzerMati();
+    }
   }
 
-  // ---------------------------
-  // Jika tidak ada deteksi
-  // ---------------------------
-  if (!deteksiA && !deteksiB) {
-    // Hanya beri peringatan kalau palang terbuka terlalu lama TANPA deteksi baru
+  // ===================================================
+  // CASE 4: Tidak ada deteksi sama sekali
+  // ===================================================
+  else {
+    waktuMulaiDeteksiA = 0;
+    waktuMulaiDeteksiB = 0;
+
     if (palangTerbuka && (sekarang - waktuTerakhirA > WAKTU_TIMEOUT)) {
       buzzerNyala();
       delay(2000);
       buzzerMati();
       palang.write(SUDUT_TUTUP);
       palangTerbuka = false;
-      Serial.println("Tidak ada deteksi setelah 5 detik → Palang ditutup + Buzzer ON");
-    } 
-    else {
-      // Jika palang sudah tertutup, jangan ada peringatan
+      Serial.println("Tidak ada deteksi selama 5 detik → Palang ditutup + Buzzer ON");
+    } else {
       buzzerMati();
     }
   }
 
-  // ---------------------------
-  // Debug serial
-  // ---------------------------
+  // ===================================================
+  // Update LED sesuai status palang
+  // ===================================================
+  updateLED();
+
+  // ===================================================
+  // Debug Serial
+  // ===================================================
   Serial.print("Jarak A = ");
   Serial.print(jarakA);
   Serial.print(" cm | Jarak B = ");
