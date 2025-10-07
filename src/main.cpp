@@ -1,59 +1,133 @@
+#include <HCSR04.h>
 #include <Servo.h>
-#include <Arduino.h>
 
-#define TRIG1 9
-#define ECHO1 10
+// ----- PIN KONFIGURASI -----
+#define TRIG_A 2
+#define ECHO_A 12
+#define TRIG_B 4
+#define ECHO_B 13
+#define PIN_SERVO 9
+#define PIN_BUZZER 8
 
-#define TRIG2 6
-#define ECHO2 7
+// ----- OBJEK SENSOR DAN SERVO -----
+UltraSonicDistanceSensor sensorA(TRIG_A, ECHO_A);
+UltraSonicDistanceSensor sensorB(TRIG_B, ECHO_B);
+Servo palang;
 
-// === Servo ===
-Servo myServo;
+// ----- KONSTANTA -----
+const int SUDUT_BUKA   = 0;      // Palang buka
+const int SUDUT_TUTUP  = 140;    // Palang tutup
+const float JARAK_DETEKSI_CM = 50.0; // Batas deteksi (cm)
+const unsigned long WAKTU_TIMEOUT = 5000; // 5 detik
+const unsigned long BATAS_WAKTU_DETEKSI = 5000; // 5 detik untuk warning
 
-long getDistance(int trigPin, int echoPin);
+// ----- VARIABEL -----
+unsigned long waktuTerakhirA = 0;
+unsigned long waktuTerakhirB = 0;
+unsigned long waktuMulaiDeteksiA = 0;
+bool buzzerAktif = false;
+bool masihTerdeteksiA = false;
+bool palangTerbuka = false;
 
+// ----- FUNGSI BUZZER -----
+void buzzerNyala() {
+  if (!buzzerAktif) {
+    digitalWrite(PIN_BUZZER, HIGH);
+    buzzerAktif = true;
+  }
+}
+
+void buzzerMati() {
+  if (buzzerAktif) {
+    digitalWrite(PIN_BUZZER, LOW);
+    buzzerAktif = false;
+  }
+}
+
+// ----- SETUP -----
 void setup() {
   Serial.begin(9600);
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, LOW);
 
-  pinMode(TRIG1, OUTPUT);
-  pinMode(ECHO1, INPUT);
+  palang.attach(PIN_SERVO);
+  palang.write(SUDUT_TUTUP);
 
-  pinMode(TRIG2, OUTPUT);
-  pinMode(ECHO2, INPUT);
-
-  myServo.attach(3);
-  myServo.write(90);
+  Serial.println("Sistem palang siap.");
 }
 
+// ----- LOOP UTAMA -----
 void loop() {
-  long distance1 = getDistance(TRIG1, ECHO1);
-  long distance2 = getDistance(TRIG2, ECHO2);
+  float jarakA = sensorA.measureDistanceCm();
+  delay(100);
+  float jarakB = sensorB.measureDistanceCm();
 
-  Serial.print("Sensor1: ");
-  Serial.print(distance1);
-  Serial.print(" cm | Sensor2: ");
-  Serial.print(distance2);
-  Serial.println(" cm");
+  bool deteksiA = (jarakA > 0 && jarakA < JARAK_DETEKSI_CM);
+  bool deteksiB = (jarakB > 0 && jarakB < JARAK_DETEKSI_CM);
 
-  if (distance1 < 20) {
-    myServo.write(0);
+  unsigned long sekarang = millis();
+
+  // ---------------------------
+  // Logika Sensor A (buka palang)
+  // ---------------------------
+  if (deteksiA) {
+    if (waktuMulaiDeteksiA == 0) waktuMulaiDeteksiA = sekarang;
+
+    palang.write(SUDUT_BUKA);
+    palangTerbuka = true;
+    buzzerMati();
+    waktuTerakhirA = sekarang;
+    Serial.println("Sensor A aktif → Palang dibuka");
+
+    // Jika masih terdeteksi setelah 5 detik → buzzer ON
+    if (sekarang - waktuMulaiDeteksiA >= BATAS_WAKTU_DETEKSI) {
+      buzzerNyala();
+      Serial.println("Sensor A masih aktif setelah 5 detik → Buzzer ON");
+    }
+  } 
+  else {
+    waktuMulaiDeteksiA = 0;
   }
-  else if (distance2 < 20) {
-    myServo.write(90);
+
+  // ---------------------------
+  // Logika Sensor B (tutup palang)
+  // ---------------------------
+  if (deteksiB) {
+    palang.write(SUDUT_TUTUP);
+    palangTerbuka = false;
+    buzzerMati();
+    waktuTerakhirB = sekarang;
+    Serial.println("Sensor B aktif → Palang ditutup");
   }
 
-  delay(300);
+  // ---------------------------
+  // Jika tidak ada deteksi
+  // ---------------------------
+  if (!deteksiA && !deteksiB) {
+    // Hanya beri peringatan kalau palang terbuka terlalu lama TANPA deteksi baru
+    if (palangTerbuka && (sekarang - waktuTerakhirA > WAKTU_TIMEOUT)) {
+      buzzerNyala();
+      delay(2000);
+      buzzerMati();
+      palang.write(SUDUT_TUTUP);
+      palangTerbuka = false;
+      Serial.println("Tidak ada deteksi setelah 5 detik → Palang ditutup + Buzzer ON");
+    } 
+    else {
+      // Jika palang sudah tertutup, jangan ada peringatan
+      buzzerMati();
+    }
+  }
+
+  // ---------------------------
+  // Debug serial
+  // ---------------------------
+  Serial.print("Jarak A = ");
+  Serial.print(jarakA);
+  Serial.print(" cm | Jarak B = ");
+  Serial.print(jarakB);
+  Serial.print(" cm | Status Palang = ");
+  Serial.println(palangTerbuka ? "TERBUKA" : "TERTUTUP");
+
+  delay(200);
 }
-
-  long getDistance(int trigPin, int echoPin) {
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-
-    long duration = pulseIn(echoPin, HIGH, 30000); // timeout 30ms
-    long distance = duration * 0.034 / 2; // konversi ke cm
-    return distance;
-  }
