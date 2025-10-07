@@ -10,6 +10,8 @@
 // === Servo ===
 Servo myServo;
 
+long getDistance(int trigPin, int echoPin);
+
 void setup() {
   Serial.begin(9600);
 
@@ -43,15 +45,15 @@ void loop() {
   delay(300);
 }
 
-long getDistance(int trigPin, int echoPin) {
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
+  long getDistance(int trigPin, int echoPin) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
 
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
 
-  long duration = pulseIn(echoPin, HIGH, 30000); // timeout 30ms
-  long distance = duration * 0.034 / 2; // konversi ke cm
-  return distance;
-}
+    long duration = pulseIn(echoPin, HIGH, 30000); // timeout 30ms
+    long distance = duration * 0.034 / 2; // konversi ke cm
+    return distance;
+  }
