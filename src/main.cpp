@@ -34,10 +34,10 @@ void loop() {
   Serial.println(" cm");
 
   if (distance1 < 20) {
-    myServo.write(90);
+    myServo.write(0);
   }
   else if (distance2 < 20) {
-    myServo.write(0);
+    myServo.write(90);
   }
 
   delay(300);
