@@ -16,10 +16,9 @@ UltraSonicDistanceSensor sensorA(TRIG_A, ECHO_A);
 UltraSonicDistanceSensor sensorB(TRIG_B, ECHO_B);
 Servo palang;
 
-// ----- KONSTANTA -----
 const int SUDUT_BUKA   = 0;      // Palang buka
 const int SUDUT_TUTUP  = 140;    // Palang tutup
-const float JARAK_DETEKSI_CM = 50.0; // Batas deteksi (cm)
+const float JARAK_DETEKSI_CM = 50.0; // Batas deteksi
 const unsigned long WAKTU_TIMEOUT = 5000; // 5 detik tanpa deteksi
 const unsigned long BATAS_WAKTU_DETEKSI = 5000; // 5 detik untuk peringatan buzzer
 
