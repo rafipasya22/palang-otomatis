@@ -16,7 +16,7 @@ UltraSonicDistanceSensor sensorB(TRIG_B, ECHO_B);
 Servo palang;
 
 const int SUDUT_BUKA   = 0;      
-const int SUDUT_TUTUP  = 140;   
+const int SUDUT_TUTUP  = 130;   
 const float JARAK_DETEKSI_CM = 10.0; 
 const unsigned long WAKTU_TIMEOUT = 5000;
 const unsigned long BATAS_WAKTU_DETEKSI = 5000; 
@@ -97,7 +97,7 @@ void loop() {
     digitalWrite(LED_MERAH, HIGH);
     digitalWrite(LED_HIJAU, LOW);
     digitalWrite(LED_KUNING, LOW);
-    delay(2000);
+    delay(5000);
     digitalWrite(LED_MERAH, LOW);
     digitalWrite(LED_HIJAU, LOW);
     digitalWrite(LED_KUNING, HIGH);
@@ -123,6 +123,9 @@ void loop() {
     if (palangTerbuka && (sekarang - waktuTerakhirA > WAKTU_TIMEOUT)) {
       palang.write(SUDUT_TUTUP);
       palangTerbuka = false;
+      
+      digitalWrite(LED_HIJAU, LOW);
+      digitalWrite(LED_MERAH, LOW);
       digitalWrite(LED_KUNING, HIGH);
       delay(2000);
       digitalWrite(LED_KUNING, LOW);
