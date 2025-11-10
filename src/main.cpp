@@ -2,25 +2,24 @@
 #include <Servo.h>
 
 // ----- PIN KONFIGURASI -----
-#define TRIG_A 2
-#define ECHO_A 12
-#define TRIG_B 4
-#define ECHO_B 13
-#define PIN_SERVO 9
-#define PIN_BUZZER 8
-#define LED_HIJAU 6
-#define LED_MERAH 7
+#define TRIG_A 3
+#define ECHO_A 4
+#define TRIG_B 7
+#define ECHO_B 6
+#define PIN_SERVO 5
+#define PIN_BUZZER 9
+#define LED_HIJAU 10
+#define LED_MERAH 8
 
-// ----- OBJEK SENSOR DAN SERVO -----
 UltraSonicDistanceSensor sensorA(TRIG_A, ECHO_A);
 UltraSonicDistanceSensor sensorB(TRIG_B, ECHO_B);
 Servo palang;
 
-const int SUDUT_BUKA   = 0;      // Palang buka
-const int SUDUT_TUTUP  = 140;    // Palang tutup
-const float JARAK_DETEKSI_CM = 50.0; // Batas deteksi
-const unsigned long WAKTU_TIMEOUT = 5000; // 5 detik tanpa deteksi
-const unsigned long BATAS_WAKTU_DETEKSI = 5000; // 5 detik untuk peringatan buzzer
+const int SUDUT_BUKA   = 0;      
+const int SUDUT_TUTUP  = 140;   
+const float JARAK_DETEKSI_CM = 10.0; 
+const unsigned long WAKTU_TIMEOUT = 5000;
+const unsigned long BATAS_WAKTU_DETEKSI = 5000; 
 
 // ----- VARIABEL -----
 unsigned long waktuMulaiDeteksiA = 0;
@@ -30,7 +29,6 @@ unsigned long waktuTerakhirB = 0;
 bool buzzerAktif = false;
 bool palangTerbuka = false;
 
-// ----- FUNGSI BUZZER -----
 void buzzerNyala() {
   if (!buzzerAktif) {
     digitalWrite(PIN_BUZZER, HIGH);
@@ -45,7 +43,6 @@ void buzzerMati() {
   }
 }
 
-// ----- FUNGSI LED -----
 void updateLED() {
   if (palangTerbuka) {
     digitalWrite(LED_HIJAU, HIGH);
@@ -56,15 +53,14 @@ void updateLED() {
   }
 }
 
-// ----- SETUP -----
 void setup() {
   Serial.begin(9600);
   pinMode(PIN_BUZZER, OUTPUT);
   pinMode(LED_HIJAU, OUTPUT);
   pinMode(LED_MERAH, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
-  digitalWrite(LED_HIJAU, LOW);
-  digitalWrite(LED_MERAH, HIGH); // awalnya palang tertutup → merah ON
+  digitalWrite(LED_HIJAU, HIGH);
+  digitalWrite(LED_MERAH, LOW);
 
   palang.attach(PIN_SERVO);
   palang.write(SUDUT_TUTUP);
@@ -72,7 +68,6 @@ void setup() {
   Serial.println("Sistem palang siap.");
 }
 
-// ----- LOOP UTAMA -----
 void loop() {
   float jarakA = sensorA.measureDistanceCm();
   delay(100);
@@ -128,7 +123,6 @@ void loop() {
   // ===================================================
   else if (deteksiB) {
     if (waktuMulaiDeteksiB == 0) waktuMulaiDeteksiB = sekarang;
-
     palang.write(SUDUT_TUTUP);
     palangTerbuka = false;
     waktuTerakhirB = sekarang;
@@ -162,14 +156,8 @@ void loop() {
     }
   }
 
-  // ===================================================
-  // Update LED sesuai status palang
-  // ===================================================
   updateLED();
 
-  // ===================================================
-  // Debug Serial
-  // ===================================================
   Serial.print("Jarak A = ");
   Serial.print(jarakA);
   Serial.print(" cm | Jarak B = ");
